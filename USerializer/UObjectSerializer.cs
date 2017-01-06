@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 namespace KS.USerializer
 {
     [Serializable]
-    public class ResultEntry
+    public class ResultEntry : IResultEntry
     {
-        public List<uint> TypeDefinition;
-        public uint Id;
-        public byte[] SerialData;
-        public volatile object Value;
+        public List<uint> TypeDefinition { get; set; }
+        public uint Id { get; set; }
+        public byte[] SerialData { get; set; }
+        public object Value { get; set; }
 
         public override string ToString()
         {
@@ -20,12 +20,13 @@ namespace KS.USerializer
         }
     }
 
+
     public class UObjectSerializer : IObjectSerializer
     {
         protected TypedObject MainObject;
         protected object lockObject = new object();
         protected uint newObjectId = 0;
-        protected List<ResultEntry> Results = new List<ResultEntry>();
+        protected List<IResultEntry> Results = new List<IResultEntry>();
         public ITypeSerializer TypeSerializer { get; protected set; }
         protected Dictionary<Type, Func<object, byte[]>> PrimitiveTypeSerializer = new Dictionary<Type, Func<object, byte[]>>
                 {
@@ -55,7 +56,7 @@ namespace KS.USerializer
                 return ++newObjectId;
         }
 
-        public List<ResultEntry> Serialize()
+        public List<IResultEntry> Serialize()
         {
             SerializeWithType(MainObject);
             return Results;
@@ -63,7 +64,7 @@ namespace KS.USerializer
 
         protected uint SerializeWithType(TypedObject mainObject)
         {
-            var result = Results.FirstOrDefault(r => r.Value == mainObject.Value);
+            IResultEntry result = Results.FirstOrDefault(r => r.Value == mainObject.Value);
             if (result != null)
                 return result.Id;
 

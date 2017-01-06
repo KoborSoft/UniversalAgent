@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 
 namespace KS.USerializer
 {
-    public class TypeCacheEntry
+    public class TypeCacheEntry : ITypeCacheEntry
     {
-        public uint Id;
-        public bool IsGeneric;
-        public Type BaseType;
-        public List<FieldInfo> Fields;
-        public bool IsArray;
+        public uint Id { get; protected set; }
+        public bool IsGeneric { get; protected set; }
+        public Type BaseType { get; protected set; }
+        public List<FieldInfo> Fields { get; protected set; }
+        public bool IsArray { get; protected set; }
 
         public TypeCacheEntry(Type type, uint id)
         {
@@ -27,11 +27,12 @@ namespace KS.USerializer
         }
     }
 
+
     public class UTypeCache : ITypeCache
     {
         protected object lockObject = new object();
         protected uint newTypeId = 0;
-        protected Dictionary<Type, TypeCacheEntry> typeCache = new Dictionary<Type, TypeCacheEntry>();
+        protected Dictionary<Type, ITypeCacheEntry> typeCache = new Dictionary<Type, ITypeCacheEntry>();
 
         protected uint GetNewTypeId()
         {
@@ -39,7 +40,7 @@ namespace KS.USerializer
                 return ++newTypeId;
         }
 
-        public TypeCacheEntry GetTypeCacheEntry(Type type)
+        public ITypeCacheEntry GetTypeCacheEntry(Type type)
         {
             Type BaseType = Utils.GetBaseType(type);
             if (typeCache.ContainsKey(BaseType))
@@ -49,7 +50,7 @@ namespace KS.USerializer
             return baseTypeCache;
         }
 
-        public TypeCacheEntry GetTypeCacheById(uint typeId)
+        public ITypeCacheEntry GetTypeCacheById(uint typeId)
         {
             return typeCache.Values.First(tc => tc.Id == typeId);
         }
