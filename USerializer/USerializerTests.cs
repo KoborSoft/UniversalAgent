@@ -38,6 +38,7 @@ namespace KS.USerializer
 
     public class USerializerTests
     {
+        public static USerializer serializer = new USerializer();
         public USerializerTests()
         {
         }
@@ -51,19 +52,16 @@ namespace KS.USerializer
         public void TestMethod1(Type type)
         {
             var obj = type.GetConstructor(new Type[] { }).Invoke(new Object[] { });
-            var serObj = UObjectSerializer.Create(type, obj);
-            var result = serObj.Serialize();
-            foreach (var line in result)
-                Debug.WriteLine(line.ToString());
+            //foreach (var i in Enumerable.Range(0, 10000)) {
+            var serObj = serializer.Serialize(type, obj);
+            //}
         }
 
         [Fact]
-        public void TestMethod2() {
+        public void TestMethod2()
+        {
             var obj = new List<int>() { 1, 2, 3, 4, 5, 6, 7 };
-            var serObj = UObjectSerializer.Create(obj);
-            var result = serObj.Serialize();
-            foreach (var line in result)
-                Debug.WriteLine(line.ToString());
+            var serObj = serializer.Serialize(obj);
         }
     }
 }

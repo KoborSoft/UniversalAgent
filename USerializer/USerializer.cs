@@ -8,90 +8,43 @@ using System.Threading.Tasks;
 
 namespace KS.USerializer
 {
-    //public interface ITypeSerializer
-    //{
-    //    TypeCache GetTypeCache(Type type);
-    //    List<UInt32> GetComplexTypeId(Type type);
-    //    List<UInt32> GetComplexTypeId(Type type, TypeCache cache);
-    //    List<Object> GetSubObjects(TypeCache cache, Object mainObject);
-    //    Type GetTypeById(UInt32 typeId);
-    //}
-
-    //public interface IObjectSerializer
-    //{
-    //    ITypeSerializer TypeSerializer { get; }
-    //    UInt32 GetNewObjectId();
-    //    Byte[] SerializeSubObject(Type type, Object subObject);
-    //}
-
-    public class SubObjectEntry
+    public static class Utils
     {
-        public List<UInt32> TypeDefinition;
-        public UInt32 Id;
-        public Byte[] SerialData;
-        public object value;
-
-        public override string ToString()
+        public static Type GetBaseType(Type type)
         {
-            return String.Format("Type: {0} Id: {1} Value: {2}", String.Join(",", TypeDefinition), Id, String.Join(",", SerialData));
+            return type.IsGenericType ? type.GetGenericTypeDefinition() : type;
+        }
+
+        public static List<FieldInfo> GetAllInstanceFields(Type type)
+        {
+            return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).OrderBy(f => f.Name).ToList();
         }
     }
-
-    public class BaseTypeCache
+    public class TypeCacheEntry
     {
         public UInt32 Id;
         public bool IsGeneric;
         public Type BaseType;
         public List<FieldInfo> Fields;
-        public UInt32 GenericParameterCount;
         public bool IsArray;
 
-        public BaseTypeCache(Type type, UInt32 id)
+        public TypeCacheEntry(Type type, UInt32 id)
         {
             Id = id;
             IsGeneric = type.IsGenericType;
             IsArray = type.IsArray;
             BaseType = type;
 
-            if (IsGeneric)
-            {
-                GenericParameterCount = (UInt32)type.GetGenericArguments().Count();
-            }
-            else
-            {
-                Fields = BaseType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).OrderBy(f => f.Name).ToList();
-                GenericParameterCount = 0;
-            }
-        }
-
-        public static Type GetBaseType(Type type)
-        {
-            return type.IsGenericType ? type.GetGenericTypeDefinition() : type;
+            if (!IsGeneric)
+                Fields = Utils.GetAllInstanceFields(BaseType);
         }
     }
 
-    public class ComplexTypeCache : IDisposable
-    {
-        public Type ComplexType;
-        public BaseTypeCache CachedType;
-        public List<FieldInfo> Fields;
-        public ComplexTypeCache(Type type, BaseTypeCache cache)
-        {
-            ComplexType = type;
-            CachedType = cache;
-            Fields = cache.Fields;
-            if (cache.IsGeneric)
-                Fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).OrderBy(f => f.Name).ToList();
-        }
-
-        public void Dispose() { Fields.Clear(); }
-    }
-
-    public class UTypeSerializer //: ITypeSerializer
+    public class UTypeCache
     {
         protected Object lockObject = new Object();
         protected UInt32 newTypeId = 0;
-        protected Dictionary<Type, BaseTypeCache> typeCache = new Dictionary<Type, BaseTypeCache>();
+        protected Dictionary<Type, TypeCacheEntry> typeCache = new Dictionary<Type, TypeCacheEntry>();
 
         protected UInt32 GetNewTypeId()
         {
@@ -99,113 +52,133 @@ namespace KS.USerializer
                 return ++newTypeId;
         }
 
-        protected BaseTypeCache GetBaseTypeCache(Type type)
+        public TypeCacheEntry GetTypeCacheEntry(Type type)
         {
-            Type BaseType = BaseTypeCache.GetBaseType(type);
+            Type BaseType = Utils.GetBaseType(type);
             if (typeCache.ContainsKey(BaseType))
                 return typeCache[BaseType];
-            var baseTypeCache = new BaseTypeCache(BaseType, GetNewTypeId());
+            var baseTypeCache = new TypeCacheEntry(BaseType, GetNewTypeId());
             typeCache[BaseType] = baseTypeCache;
             return baseTypeCache;
         }
 
-        public ComplexTypeCache GetTypeCache(Type type) => new ComplexTypeCache(type, GetBaseTypeCache(type));
-
-        public List<uint> GetComplexTypeId(ComplexTypeCache cache)
-        {
-            var result = new List<uint>() { cache.CachedType.Id };
-            if (cache.CachedType.IsGeneric)
-                foreach (var generic in cache.ComplexType.GetGenericArguments())
-                    using (var typeCache = GetTypeCache(generic))
-                        result.AddRange(GetComplexTypeId(typeCache));
-
-            return result;
-        }
-
-        public IEnumerable<TypedObject> GetSubObjects(ComplexTypeCache cache, object mainObject)
-        {
-            if (mainObject == null)
-                yield break;
-            if (!cache.CachedType.IsArray)
-            {
-                foreach (var f in cache.Fields)
-                    yield return new TypedObject(f.FieldType, f.GetValue(mainObject));
-            }
-            else
-            {
-                var array = ((Array)mainObject);
-                var arrayType = cache.ComplexType.GetElementType();
-                yield return new TypedObject(typeof(Int32), array.Length);
-                foreach (var obj in array)
-                    yield return new TypedObject(arrayType, obj);
-            }
-        }
-
-        public BaseTypeCache GetTypeById(uint typeId)
+        public TypeCacheEntry GetTypeCacheById(uint typeId)
         {
             return typeCache.Values.First(tc => tc.Id == typeId);
+        }
+    }
+
+    public class FastType : IDisposable
+    {
+        public Type RealType;
+        public TypeCacheEntry Cache;
+        public List<FieldInfo> Fields;
+        public FastType(Type type, TypeCacheEntry cache)
+        {
+            RealType = type;
+            Cache = cache;
+            Fields = cache.Fields;
+            if (cache.IsGeneric)
+                Fields = Utils.GetAllInstanceFields(type);
+        }
+
+        protected IEnumerable<TypedObject> GetArrayElements(Array array)
+        {
+            var arrayType = RealType.GetElementType();
+            yield return new TypedObject(typeof(Int32), array.Length);
+            foreach (var obj in array)
+                yield return new TypedObject(arrayType, obj);
+        }
+
+        protected IEnumerable<TypedObject> GetFields(object mainObject)
+        {
+            foreach (var f in Fields)
+                yield return new TypedObject(f.FieldType, f.GetValue(mainObject));
+        }
+
+        public IEnumerable<TypedObject> GetSubObjects(object mainObject)
+        {
+            if (mainObject == null)
+                return new List<TypedObject>();
+            return Cache.IsArray
+                ? GetArrayElements((Array)mainObject)
+                : GetFields(mainObject);
+        }
+
+        public void Dispose() { Fields.Clear(); }
+    }
+
+    public class UTypeSerializer //: ITypeSerializer
+    {
+        public UTypeCache TypeCache = new UTypeCache();
+
+        public FastType GetFastType(Type type) => new FastType(type, TypeCache.GetTypeCacheEntry(type));
+
+        public IEnumerable<uint> GetComplexTypeId(FastType fastType)
+        {
+            yield return fastType.Cache.Id;
+            if (fastType.Cache.IsGeneric)
+                foreach (var generic in fastType.RealType.GetGenericArguments())
+                    using (var typeCache = GetFastType(generic))
+                        foreach (var r in GetComplexTypeId(typeCache))
+                            yield return r;
+        }
+    }
+
+    [Serializable]
+    public class ResultEntry
+    {
+        public List<UInt32> TypeDefinition;
+        public UInt32 Id;
+        public Byte[] SerialData;
+        public volatile object Value;
+
+        public override string ToString()
+        {
+            return String.Format("Type: {0} Id: {1} Value: {2}", String.Join(",", TypeDefinition), Id, String.Join(",", SerialData));
         }
     }
 
     public class TypedObject
     {
         public Type type { get; protected set; }
-        public Object value { get; protected set; }
-        public TypedObject(Type type, Object value) { this.type = type; this.value = value; }
+        public Object Value { get; protected set; }
+        public TypedObject(Type type, Object value) { this.type = type; this.Value = value; }
+    }
+
+    public class USerializer
+    {
+        public UTypeSerializer TypeSerializer { get; protected set; } = new UTypeSerializer();
+        public IEnumerable<Byte> Serialize<T>(T value) => Serialize(typeof(T), value);
+        public IEnumerable<Byte> Serialize(Type type, Object value)
+        {
+            var result = new List<Byte>();
+            var resultEntries = new UObjectSerializer(TypeSerializer, new TypedObject(type, value)).Serialize();
+
+            result.AddRange(BitConverter.GetBytes((UInt32)resultEntries.Count));
+            foreach (var resultEntry in resultEntries)
+            {
+                result.AddRange(resultEntry.TypeDefinition.SelectMany(td => BitConverter.GetBytes(td)));
+                result.AddRange(BitConverter.GetBytes(resultEntry.Id));
+                result.AddRange(BitConverter.GetBytes((UInt32)resultEntry.SerialData.Length));
+                result.AddRange(resultEntry.SerialData);
+            }
+            return result;
+        }
+
+        public Object Deserialize(IEnumerable<Byte> serializedObject)
+        {
+            return new UObjectDeserializer(TypeSerializer, serializedObject).Deserialize();
+        }
     }
 
     public class UObjectSerializer //: IObjectSerializer
     {
-        protected TypedObject mainObject;
+        protected TypedObject MainObject;
         protected Object lockObject = new Object();
         protected UInt32 newObjectId = 0;
-        protected List<SubObjectEntry> Results = new List<SubObjectEntry>();
-
-        public UTypeSerializer TypeSerializer { get; protected set; }
-
-        protected UObjectSerializer(Type type, Object value) { mainObject = new TypedObject(type, value); }
-
-        public static UObjectSerializer Create(Type type, Object value) => new UObjectSerializer(type, value);
-        public static UObjectSerializer Create<T>(T value) => new UObjectSerializer(typeof(T), value);
-
-        public List<SubObjectEntry> Serialize()
-        {
-            Serialize(mainObject);
-            return Results;
-        }
-
-        public uint GetNewObjectId()
-        {
-            lock (lockObject)
-                return ++newObjectId;
-        }
-
-        protected UInt32 Serialize(TypedObject subObject)
-        {
-            var result = Results.FirstOrDefault(r => r.value == subObject.value);
-            if (result != null)
-                return result.Id;
-
-            var cache = TypeSerializer.GetTypeCache(subObject.type);
-
-            result = new SubObjectEntry();
-
-            result.Id = GetNewObjectId();
-            result.TypeDefinition = TypeSerializer.GetComplexTypeId(cache);
-            result.SerialData = TypeSerializer.GetSubObjects(cache, subObject.value).SelectMany(o => SerializeSubObject(o)).ToArray();
-            result.value = subObject.value;
-
-            Results.Add(result);
-            return result.Id;
-        }
-
-        public byte[] SerializeSubObject(TypedObject subObject)
-        {
-            if (PrimitiveTypeSerializer.ContainsKey(subObject.type))
-                return PrimitiveTypeSerializer[subObject.type](subObject.value);
-            return BitConverter.GetBytes(Serialize(subObject));
-        }
-
+        protected List<ResultEntry> Results = new List<ResultEntry>();
+        protected UTypeSerializer TypeSerializer;
         protected Dictionary<Type, Func<object, byte[]>> PrimitiveTypeSerializer = new Dictionary<Type, Func<object, byte[]>>
                 {
                     { typeof(bool), b => BitConverter.GetBytes((bool)b) },
@@ -221,11 +194,62 @@ namespace KS.USerializer
                     { typeof(sbyte), b => BitConverter.GetBytes((sbyte)b) },
                     { typeof(string), b => Encoding.Unicode.GetBytes((string)b) }
                 };
+
+        public UObjectSerializer(UTypeSerializer serializer, TypedObject mainObject)
+        {
+            TypeSerializer = serializer;
+            MainObject = mainObject;
+        }
+
+        public uint GetNewObjectId()
+        {
+            lock (lockObject)
+                return ++newObjectId;
+        }
+
+        public List<ResultEntry> Serialize()
+        {
+            SerializeWithType(MainObject);
+            return Results;
+        }
+
+        protected UInt32 SerializeWithType(TypedObject mainObject)
+        {
+            var result = Results.FirstOrDefault(r => r.Value == mainObject.Value);
+            if (result != null)
+                return result.Id;
+
+            var fastType = TypeSerializer.GetFastType(mainObject.type);
+
+            result = new ResultEntry();
+            result.Id = GetNewObjectId();
+            result.TypeDefinition = TypeSerializer.GetComplexTypeId(fastType).ToList();
+            result.SerialData = fastType.GetSubObjects(mainObject.Value).SelectMany(obj => SerializeSubObject(obj)).ToArray();
+            result.Value = mainObject.Value;
+
+            Results.Add(result);
+            return result.Id;
+        }
+
+        protected byte[] SerializeSubObject(TypedObject subObject)
+        {
+            if (PrimitiveTypeSerializer.ContainsKey(subObject.type))
+                return PrimitiveTypeSerializer[subObject.type](subObject.Value);
+            return BitConverter.GetBytes(SerializeWithType(subObject));
+        }
     }
 
     public class UObjectDeserializer
     {
-        public UTypeSerializer TypeSerializer { get; protected set; }
+        private IEnumerable<byte> serializedObject;
+        protected UTypeSerializer TypeSerializer;
+
+        public UObjectDeserializer(UTypeSerializer typeSerializer, IEnumerable<byte> serializedObject)
+        {
+            TypeSerializer = typeSerializer;
+            this.serializedObject = serializedObject;
+        }
+
         /// <summary>
         /// Deserializalize type.
         /// Not finished.
@@ -240,7 +264,7 @@ namespace KS.USerializer
         protected Tuple<Type, List<UInt32>> DeserializeType(List<UInt32> typeIdList)
         {
 
-            var baseType = TypeSerializer.GetTypeById(typeIdList[0]);
+            var baseType = TypeSerializer.TypeCache.GetTypeCacheById(typeIdList[0]);
             // Get rest of the Id-s and create a typeList. This will be the generic list.
             // prepare for recursion.
             // recursion is a must, since the generic types can be nicely nested.
@@ -266,22 +290,10 @@ namespace KS.USerializer
             var result = baseType.BaseType.MakeGenericType(parameterTypes.ToArray());
             return new Tuple<Type, List<uint>>(result, restTypeIdList);
         }
-    }
 
-    public class DefaultDictionary<TKey, TValue> : Dictionary<TKey, TValue>
-    {
-        protected Func<TKey, TValue> p;
-        public DefaultDictionary(Func<TKey, TValue> p) { this.p = p; }
-
-        public new TValue this[TKey key]
+        internal object Deserialize()
         {
-            get
-            {
-                if (!ContainsKey(key))
-                    base[key] = p(key);
-                return base[key];
-            }
-            set { base[key] = value; }
+            throw new NotImplementedException();
         }
     }
 }
