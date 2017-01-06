@@ -11,6 +11,7 @@ namespace KS.USerializer
     {
         R RProperty { get; }
     }
+
     public struct TestStruct<T, U> : TestInterface<U> where U : new()
     {
         public T TValue;
@@ -21,7 +22,6 @@ namespace KS.USerializer
         public T TProperty { get; }
         public U UProperty { get; set; }
     }
-
 
     public class TestClass<T, U> where T : new() where U : new()
     {
@@ -51,7 +51,7 @@ namespace KS.USerializer
         [InlineData(typeof(InheritedClass<TestClass<List<int>, int>, TestStruct<int, int>>))]
         public void TestMethod1(Type type)
         {
-            var obj = type.GetConstructor(new Type[] { }).Invoke(new Object[] { });
+            var obj = type.GetConstructor(new Type[] { }).Invoke(new object[] { });
             //foreach (var i in Enumerable.Range(0, 10000)) {
             var serObj = serializer.Serialize(type, obj);
             //}
