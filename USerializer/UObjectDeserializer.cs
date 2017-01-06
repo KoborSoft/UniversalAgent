@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace KS.USerializer
 {
+    /// <summary>
+    /// TODO On all levels. Wrong. Sketch. Under construction.
+    /// </summary>
     public class UObjectDeserializer
     {
         private IEnumerable<byte> serializedObject;
