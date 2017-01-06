@@ -14,6 +14,16 @@ namespace KS.USerializer
         public byte[] SerialData { get; set; }
         public object Value { get; set; }
 
+        public IEnumerable<byte> GetBytes()
+        {
+            var result = new List<byte>();
+            result.AddRange(TypeDefinition.SelectMany(td => BitConverter.GetBytes(td)));
+            result.AddRange(BitConverter.GetBytes(Id));
+            result.AddRange(BitConverter.GetBytes((uint)SerialData.Length));
+            result.AddRange(SerialData);
+            return result;
+        }
+
         public override string ToString()
         {
             return String.Format("Type: {0} Id: {1} Value: {2}", String.Join(",", TypeDefinition), Id, String.Join(",", SerialData));
@@ -72,7 +82,7 @@ namespace KS.USerializer
 
             result = new ResultEntry();
             result.Id = GetNewObjectId();
-            result.TypeDefinition = TypeSerializer.GetComplexTypeId(fastType).ToList();
+            result.TypeDefinition = TypeSerializer.GetTypeDefinition(fastType).ToList();
             result.SerialData = fastType.GetSubObjects(mainObject.Value).SelectMany(obj => SerializeSubObject(obj)).ToArray();
             result.Value = mainObject.Value;
 

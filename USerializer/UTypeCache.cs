@@ -27,7 +27,6 @@ namespace KS.USerializer
         }
     }
 
-
     public class UTypeCache : ITypeCache
     {
         protected object lockObject = new object();

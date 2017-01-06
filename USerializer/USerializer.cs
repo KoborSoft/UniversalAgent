@@ -15,12 +15,7 @@ namespace KS.USerializer
 
             result.AddRange(BitConverter.GetBytes((uint)resultEntries.Count));
             foreach (var resultEntry in resultEntries)
-            {
-                result.AddRange(resultEntry.TypeDefinition.SelectMany(td => BitConverter.GetBytes(td)));
-                result.AddRange(BitConverter.GetBytes(resultEntry.Id));
-                result.AddRange(BitConverter.GetBytes((uint)resultEntry.SerialData.Length));
-                result.AddRange(resultEntry.SerialData);
-            }
+                result.AddRange(resultEntry.GetBytes());
             return result;
         }
 

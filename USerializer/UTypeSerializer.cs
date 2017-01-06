@@ -11,7 +11,12 @@ namespace KS.USerializer
     {
         public Type type { get; protected set; }
         public object Value { get; protected set; }
-        public TypedObject(Type type, object value) { this.type = type; Value = value; }
+
+        public TypedObject(Type type, object value)
+        {
+            this.type = type;
+            Value = value;
+        }
     }
 
     public class FastType : IFastType
@@ -19,6 +24,7 @@ namespace KS.USerializer
         public Type RealType { get; protected set; }
         public ITypeCacheEntry Cache { get; protected set; }
         public List<FieldInfo> Fields { get; protected set; }
+
         public FastType(Type type, ITypeCacheEntry cache)
         {
             RealType = type;
@@ -58,14 +64,16 @@ namespace KS.USerializer
     {
         public ITypeCache TypeCache { get; protected set; }
         public UTypeSerializer(ITypeCache cache) { TypeCache = cache; }
+
         public IFastType GetFastType(Type type) => new FastType(type, TypeCache.GetTypeCacheEntry(type));
-        public IEnumerable<uint> GetComplexTypeId(IFastType fastType)
+
+        public IEnumerable<uint> GetTypeDefinition(IFastType fastType)
         {
             yield return fastType.Cache.Id;
             if (fastType.Cache.IsGeneric)
                 foreach (var generic in fastType.RealType.GetGenericArguments())
                     using (var typeCache = GetFastType(generic))
-                        foreach (var r in GetComplexTypeId(typeCache))
+                        foreach (var r in GetTypeDefinition(typeCache))
                             yield return r;
         }
     }

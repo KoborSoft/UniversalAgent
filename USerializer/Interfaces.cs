@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 
 namespace KS.USerializer
 {
@@ -12,7 +13,6 @@ namespace KS.USerializer
         Type BaseType { get; }
         List<FieldInfo> Fields { get; }
         bool IsArray { get; }
-
     }
 
     public interface ITypeCache
@@ -33,7 +33,7 @@ namespace KS.USerializer
     {
         ITypeCache TypeCache { get; }
         IFastType GetFastType(Type type);
-        IEnumerable<uint> GetComplexTypeId(IFastType fastType);
+        IEnumerable<uint> GetTypeDefinition(IFastType fastType);
     }
 
     public interface IResultEntry
@@ -42,6 +42,7 @@ namespace KS.USerializer
         uint Id { get; set; }
         byte[] SerialData { get; set; }
         object Value { get; set; }
+        IEnumerable<Byte> GetBytes();
     }
 
     public interface IObjectSerializer
