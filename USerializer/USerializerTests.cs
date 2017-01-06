@@ -51,7 +51,7 @@ namespace KS.USerializer
         public void TestMethod1(Type type)
         {
             var obj = type.GetConstructor(new Type[] { }).Invoke(new Object[] { });
-            var serObj = USerialization.Create(type, obj);
+            var serObj = UObjectSerializer.Create(type, obj);
             var result = serObj.Serialize();
             foreach (var line in result)
                 Debug.WriteLine(line.ToString());
@@ -60,7 +60,7 @@ namespace KS.USerializer
         [Fact]
         public void TestMethod2() {
             var obj = new List<int>() { 1, 2, 3, 4, 5, 6, 7 };
-            var serObj = USerialization.Create(obj);
+            var serObj = UObjectSerializer.Create(obj);
             var result = serObj.Serialize();
             foreach (var line in result)
                 Debug.WriteLine(line.ToString());
