@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -41,14 +41,19 @@ namespace KS.USerializer
 
         public ITypeCacheEntry GetTypeCacheEntry(Type type)
         {
-            Type BaseType = Utils.GetBaseType(type);
-            if (typeCache.ContainsKey(BaseType))
-                return typeCache[BaseType];
-            var baseTypeCache = new TypeCacheEntry(BaseType, GetNewTypeId());
+            Type baseType = Utils.GetBaseType(type);
+            if (typeCache.ContainsKey(baseType))
+                return typeCache[baseType];
+            return RegisterNewTypeCache(BaseType);
+        }
+        
+        protected ITypeCacheEntry RegisterNewTypeCache(Type baseType)
+        {
+            var baseTypeCache = new TypeCacheEntry(baseType, GetNewTypeId());
             typeCache[BaseType] = baseTypeCache;
             return baseTypeCache;
         }
-
+        
         public ITypeCacheEntry GetTypeCacheById(uint typeId)
         {
             return typeCache.Values.First(tc => tc.Id == typeId);
