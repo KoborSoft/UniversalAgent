@@ -11,8 +11,8 @@ namespace KS.USerializer
     {
         public uint Id { get; protected set; }
         public bool IsGeneric { get; protected set; }
-        public Type BaseType { get; protected set; }
-        public List<FieldInfo> Fields { get; protected set; }
+        public Type TemplateType { get; protected set; }
+        public List<FieldInfo> CachedFields { get; protected set; }
         public bool IsArray { get; protected set; }
 
         public TypeCacheEntry(Type type, uint id)
@@ -20,10 +20,10 @@ namespace KS.USerializer
             Id = id;
             IsGeneric = type.IsGenericType;
             IsArray = type.IsArray;
-            BaseType = type;
+            TemplateType = type;
 
             if (!IsGeneric)
-                Fields = Utils.GetAllInstanceFields(BaseType);
+                CachedFields = Utils.GetAllInstanceFields(TemplateType);
         }
     }
 
@@ -41,19 +41,23 @@ namespace KS.USerializer
 
         public ITypeCacheEntry GetTypeCacheEntry(Type type)
         {
-            Type baseType = Utils.GetBaseType(type);
-            if (typeCache.ContainsKey(baseType))
-                return typeCache[baseType];
-            return RegisterNewTypeCache(BaseType);
+            Type templateType = Utils.GetTemplateType(type);
+            var typeCache = GetTypeCache(templateType) ?? RegisterTypeCache(templateType);
+            return new FastType(type, typeCache);
         }
-        
-        protected ITypeCacheEntry RegisterNewTypeCache(Type baseType)
+
+        protected ITypeCacheEntry GetTypeCache(Type templateType)
         {
-            var baseTypeCache = new TypeCacheEntry(baseType, GetNewTypeId());
-            typeCache[BaseType] = baseTypeCache;
-            return baseTypeCache;
+            return (typeCache.ContainsKey(templateType)) ? typeCache[templateType] : null;
         }
-        
+
+        protected ITypeCacheEntry RegisterTypeCache(Type templateType)
+        {
+            var typeCache = new TypeCacheEntry(templateType, GetNewTypeId());
+            this.typeCache[templateType] = typeCache;
+            return typeCache;
+        }
+
         public ITypeCacheEntry GetTypeCacheById(uint typeId)
         {
             return typeCache.Values.First(tc => tc.Id == typeId);

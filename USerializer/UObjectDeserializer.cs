@@ -45,7 +45,7 @@ namespace KS.USerializer
             // This foreach is only to count.
             // Could type order vary? No. It is fix. Field order varies sometimes,
             // but Generic Type order is always strictly the same as defined in code.
-            foreach (var type in baseType.BaseType.GetGenericArguments())
+            foreach (var type in baseType.TemplateType.GetGenericArguments())
             {
                 // Subtype creation. Recursive.
                 var sub = DeserializeType(restTypeIdList);
@@ -57,7 +57,7 @@ namespace KS.USerializer
             }
 
             // Generic SubType Created. Woho!!!
-            var result = baseType.BaseType.MakeGenericType(parameterTypes.ToArray());
+            var result = baseType.TemplateType.MakeGenericType(parameterTypes.ToArray());
             return new Tuple<Type, List<uint>>(result, restTypeIdList);
         }
 

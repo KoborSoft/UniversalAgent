@@ -9,7 +9,7 @@ namespace KS.USerializer
 {
     public static class Utils
     {
-        public static Type GetBaseType(Type type)
+        public static Type GetTemplateType(this Type type)
         {
             return type.IsGenericType ? type.GetGenericTypeDefinition() : type;
         }

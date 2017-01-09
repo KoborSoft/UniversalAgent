@@ -10,8 +10,8 @@ namespace KS.USerializer
     {
         uint Id { get; }
         bool IsGeneric { get; }
-        Type BaseType { get; }
-        List<FieldInfo> Fields { get; }
+        Type TemplateType { get; }
+        List<FieldInfo> CachedFields { get; }
         bool IsArray { get; }
     }
 
@@ -21,11 +21,13 @@ namespace KS.USerializer
         ITypeCacheEntry GetTypeCacheById(uint v);
     }
 
+    // --------------------------
+
     public interface IFastType : IDisposable
     {
-        Type RealType { get; }
-        ITypeCacheEntry Cache { get; }
-        List<FieldInfo> Fields { get; }
+        IEnumerable<Type> GetGenericArguments();
+        //ITypeCacheEntry Cache { get; }
+        //List<FieldInfo> Fields { get; }
         IEnumerable<TypedObject> GetSubObjects(object mainObject);
     }
 
@@ -35,6 +37,8 @@ namespace KS.USerializer
         IFastType GetFastType(Type type);
         IEnumerable<uint> GetTypeDefinition(IFastType fastType);
     }
+
+    // -------------------------
 
     public interface IResultEntry
     {

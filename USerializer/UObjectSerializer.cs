@@ -30,7 +30,6 @@ namespace KS.USerializer
         }
     }
 
-
     public class UObjectSerializer : IObjectSerializer
     {
         protected TypedObject MainObject;
@@ -78,14 +77,17 @@ namespace KS.USerializer
             if (result != null)
                 return result.Id;
 
-            var fastType = TypeSerializer.GetFastType(mainObject.type);
+            return CreateEntry(mainObject);
+        }
 
-            result = new ResultEntry();
+        protected uint CreateEntry(TypedObject mainObject)
+        {
+            var fastType = TypeSerializer.GetFastType(mainObject.type);
+            var result = new ResultEntry();
             result.Id = GetNewObjectId();
             result.TypeDefinition = TypeSerializer.GetTypeDefinition(fastType).ToList();
             result.SerialData = fastType.GetSubObjects(mainObject.Value).SelectMany(obj => SerializeSubObject(obj)).ToArray();
             result.Value = mainObject.Value;
-
             Results.Add(result);
             return result.Id;
         }
@@ -98,3 +100,4 @@ namespace KS.USerializer
         }
     }
 }
+
