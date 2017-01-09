@@ -22,8 +22,10 @@ namespace KS.USerializer
     public class FastType : IFastType
     {
         protected Type RealType;
-        protected ITypeCacheEntry Cache;
+        public ITypeCacheEntry Cache { get; protected set; }
         public List<FieldInfo> Fields { get; protected set; }
+        public uint Id { get { return Cache.Id; } }
+        public bool IsGeneric { get { return Cache.IsGeneric; } }
 
         public FastType(Type type, ITypeCacheEntry cache)
         {
@@ -57,7 +59,7 @@ namespace KS.USerializer
                 : GetFields(mainObject);
         }
 
-        public IEnumerable<Type> GetGenericArguments() => RealType.GetGenericArguments(); 
+        public IEnumerable<Type> GetGenericArguments() => RealType.GetGenericArguments();
 
         public void Dispose() { Fields.Clear(); }
     }
@@ -67,16 +69,14 @@ namespace KS.USerializer
         public ITypeCache TypeCache { get; protected set; }
         public UTypeSerializer(ITypeCache cache) { TypeCache = cache; }
 
-        public IFastType GetFastType(Type type) => new FastType(type, TypeCache.GetTypeCacheEntry(type));
-
         public IEnumerable<uint> GetTypeDefinition(IFastType fastType)
         {
-            yield return fastType.Cache.Id;
-            if (!fastType.Cache.IsGeneric)
+            yield return fastType.Id;
+            if (!fastType.IsGeneric)
                 yield break;
 
             foreach (var generic in fastType.GetGenericArguments())
-                using (var typeCache = GetFastType(generic))
+                using (var typeCache = TypeCache.GetFastType(generic))
                     foreach (var r in GetTypeDefinition(typeCache))
                         yield return r;
         }

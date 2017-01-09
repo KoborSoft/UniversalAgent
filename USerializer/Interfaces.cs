@@ -17,7 +17,7 @@ namespace KS.USerializer
 
     public interface ITypeCache
     {
-        ITypeCacheEntry GetTypeCacheEntry(Type type);
+        IFastType GetFastType(Type type);
         ITypeCacheEntry GetTypeCacheById(uint v);
     }
 
@@ -25,16 +25,17 @@ namespace KS.USerializer
 
     public interface IFastType : IDisposable
     {
+        uint Id { get; }
+        bool IsGeneric { get; }
         IEnumerable<Type> GetGenericArguments();
-        //ITypeCacheEntry Cache { get; }
-        //List<FieldInfo> Fields { get; }
+        ITypeCacheEntry Cache { get; }
+        List<FieldInfo> Fields { get; }
         IEnumerable<TypedObject> GetSubObjects(object mainObject);
     }
 
     public interface ITypeSerializer
     {
         ITypeCache TypeCache { get; }
-        IFastType GetFastType(Type type);
         IEnumerable<uint> GetTypeDefinition(IFastType fastType);
     }
 

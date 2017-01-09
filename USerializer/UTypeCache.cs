@@ -39,7 +39,7 @@ namespace KS.USerializer
                 return ++newTypeId;
         }
 
-        public ITypeCacheEntry GetTypeCacheEntry(Type type)
+        public IFastType GetFastType(Type type)
         {
             Type templateType = Utils.GetTemplateType(type);
             var typeCache = GetTypeCache(templateType) ?? RegisterTypeCache(templateType);

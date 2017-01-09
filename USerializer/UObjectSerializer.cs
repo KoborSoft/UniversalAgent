@@ -82,7 +82,7 @@ namespace KS.USerializer
 
         protected uint CreateEntry(TypedObject mainObject)
         {
-            var fastType = TypeSerializer.GetFastType(mainObject.type);
+            var fastType = TypeSerializer.TypeCache.GetFastType(mainObject.type);
             var result = new ResultEntry();
             result.Id = GetNewObjectId();
             result.TypeDefinition = TypeSerializer.GetTypeDefinition(fastType).ToList();
